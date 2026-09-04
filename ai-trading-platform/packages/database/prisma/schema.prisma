@@ -1,0 +1,503 @@
+// =============================================================================
+// AI TRADING PLATFORM — DATABASE SCHEMA
+// PostgreSQL via Prisma ORM
+// Compatible with Supabase and Neon (both offer free-tier PostgreSQL)
+//
+// Run:
+//   pnpm --filter @trading/database db:migrate:dev   (development)
+//   pnpm --filter @trading/database db:migrate       (production)
+//   pnpm --filter @trading/database db:generate      (after schema changes)
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// TRADING SETTINGS
+// Single-row table — one user, one settings record.
+// =============================================================================
+
+model TradingSettings {
+  id        String   @id @default("singleton")
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+
+  // --- Trading mode ---
+  paperTrading Boolean @default(true)
+  liveTrading  Boolean @default(false)
+
+  // --- Position sizing ---
+  riskPerTradePercent Float @default(0.01) // 1%
+  minRiskReward       Float @default(2.0)
+
+  // --- Loss limits ---
+  maxDailyLossPercent  Float @default(0.03) // 3%
+  maxWeeklyLossPercent Float @default(0.06) // 6%
+  maxDrawdownPercent   Float @default(0.10) // 10%
+
+  // --- Trade limits ---
+  maxTradesPerDay   Int @default(5)
+  maxOpenPositions  Int @default(3)
+  maxLeverage       Int @default(1)
+
+  // --- Quality filters ---
+  minStrategyScore  Int   @default(80)
+  minAiConfidence   Float @default(0.80)
+
+  // --- Direction ---
+  longEnabled  Boolean @default(true)
+  shortEnabled Boolean @default(false)
+
+  // --- Stop loss / take profit ---
+  stopLossMode       String  @default("structure") // fixed | atr | structure
+  takeProfitMode     String  @default("rr_ratio")  // fixed | rr_ratio | structure
+  trailingStopEnabled Boolean @default(false)
+  breakEvenEnabled    Boolean @default(false)
+
+  // --- Timing ---
+  tradingHoursStart      String @default("00:00") // HH:MM UTC
+  tradingHoursEnd        String @default("23:59") // HH:MM UTC
+  cooldownAfterTradeMs   Int    @default(300000)  // 5 minutes
+  cooldownAfterLossMs    Int    @default(1800000) // 30 minutes
+
+  // --- Symbols & timeframes ---
+  allowedSymbols   String[] @default([])
+  allowedTimeframes String[] @default(["15m", "1h", "4h"])
+
+  // --- AI ---
+  aiEnabled          Boolean @default(true)
+  aiUnavailableMode  String  @default("NO_TRADE") // NO_TRADE | RULE_BASED
+
+  // --- Profit targets (optional) ---
+  dailyProfitTargetPercent Float?
+  dailyProfitTargetAmount  Float?
+
+  @@map("trading_settings")
+}
+
+// =============================================================================
+// PAPER TRADING ACCOUNT
+// Tracks virtual balance for paper trading.
+// =============================================================================
+
+model PaperAccount {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  initialBalance  Float
+  currentBalance  Float
+  equity          Float    // balance + unrealised PnL
+  highWaterMark   Float    // peak equity — used for drawdown calculation
+  currency        String   @default("USDT")
+
+  @@map("paper_accounts")
+}
+
+// =============================================================================
+// MARKET DATA
+// =============================================================================
+
+model Symbol {
+  id           String   @id @default(cuid())
+  symbol       String   @unique // e.g. "BTCUSDT"
+  baseAsset    String   // e.g. "BTC"
+  quoteAsset   String   // e.g. "USDT"
+  exchange     String   @default("binance")
+  isActive     Boolean  @default(true)
+  minOrderSize Float    @default(0)
+  tickSize     Float    @default(0.01)
+  stepSize     Float    @default(0.00001)
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  candles      MarketCandle[]
+
+  @@map("symbols")
+}
+
+model MarketCandle {
+  id         String   @id @default(cuid())
+  symbol     String
+  timeframe  String   // 1m | 5m | 15m | 1h | 4h | 1d
+  openTime   DateTime @db.Timestamptz
+  closeTime  DateTime @db.Timestamptz
+  open       Float
+  high       Float
+  low        Float
+  close      Float
+  volume     Float
+  isClosed   Boolean  @default(true)
+
+  symbolRef  Symbol   @relation(fields: [symbol], references: [symbol])
+
+  @@unique([symbol, timeframe, openTime])
+  @@index([symbol, timeframe, openTime(sort: Desc)])
+  @@map("market_candles")
+}
+
+// =============================================================================
+// STRATEGIES
+// =============================================================================
+
+model Strategy {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "ema_trend_follow"
+  displayName String
+  description String?
+  isActive    Boolean  @default(true)
+  config      Json     @default("{}") // strategy-specific parameters
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  signals     StrategySignal[]
+
+  @@map("strategies")
+}
+
+model StrategySignal {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now()) @db.Timestamptz
+
+  strategyId    String
+  strategy      Strategy @relation(fields: [strategyId], references: [id])
+
+  symbol        String
+  timeframe     String
+  direction     String   // LONG | SHORT | NEUTRAL
+  score         Int      // 0-100
+  confidence    Float    // 0-1
+  entryMin      Float
+  entryMax      Float
+  stopLoss      Float
+  takeProfit    Float
+  riskReward    Float
+  marketRegime  String
+  reasons       String[]
+
+  // Links to decision log
+  decisionLogs  TradeDecisionLog[]
+
+  @@index([symbol, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("strategy_signals")
+}
+
+// =============================================================================
+// AI ENGINE
+// =============================================================================
+
+model AiPrediction {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  symbol       String
+  timeframe    String
+  modelUsed    String
+  provider     String
+
+  decision     String   // BUY | SELL | HOLD | NO_TRADE
+  confidence   Float
+  marketRegime String
+  entry        Float?
+  stopLoss     Float?
+  takeProfit   Float?
+  reasons      String[]
+  rawResponse  Json?
+
+  latencyMs    Int
+  tokensUsed   Int?
+  promptTokens Int?
+
+  @@index([symbol, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("ai_predictions")
+}
+
+model AiUsageLog {
+  id              String   @id @default(cuid())
+  date            String   // YYYY-MM-DD UTC — for daily aggregation
+  createdAt       DateTime @default(now()) @db.Timestamptz
+
+  provider        String
+  model           String
+  requestsCount   Int      @default(0)
+  errorsCount     Int      @default(0)
+  rateLimitHits   Int      @default(0)
+  totalLatencyMs  Int      @default(0)
+  totalTokens     Int      @default(0)
+
+  @@unique([date, provider, model])
+  @@map("ai_usage_logs")
+}
+
+// =============================================================================
+// ORDERS
+// =============================================================================
+
+model Order {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  clientOrderId   String   @unique @default(cuid())
+  exchangeOrderId String?
+
+  symbol          String
+  side            String   // BUY | SELL
+  type            String   // MARKET | LIMIT | STOP | STOP_LIMIT
+  status          String   // PENDING | OPEN | PARTIALLY_FILLED | FILLED | CANCELLED | REJECTED | EXPIRED
+
+  quantity        Float
+  price           Float?
+  stopPrice       Float?
+  filledQuantity  Float    @default(0)
+  avgFillPrice    Float?
+
+  fees            Float    @default(0)
+  feeCurrency     String   @default("USDT")
+
+  filledAt        DateTime? @db.Timestamptz
+
+  // Tracking
+  isPaper         Boolean  @default(true)
+  positionId      String?
+  position        Position? @relation(fields: [positionId], references: [id])
+
+  @@index([symbol, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([positionId])
+  @@map("orders")
+}
+
+// =============================================================================
+// POSITIONS
+// =============================================================================
+
+model Position {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  symbol        String
+  side          String   // LONG | SHORT
+  status        String   // OPEN | CLOSED
+
+  entryPrice    Float
+  quantity      Float
+  stopLoss      Float
+  takeProfit    Float
+
+  currentPrice  Float    @default(0)
+  unrealisedPnl Float    @default(0)
+  realisedPnl   Float    @default(0)
+  fees          Float    @default(0)
+
+  openedAt      DateTime @db.Timestamptz
+  closedAt      DateTime? @db.Timestamptz
+  closeReason   String?   // TAKE_PROFIT | STOP_LOSS | MANUAL | EMERGENCY_STOP | RISK_LIMIT | SIGNAL_REVERSAL
+
+  isPaper       Boolean  @default(true)
+
+  // Decision context
+  strategyScore   Int?
+  aiConfidence    Float?
+  marketRegimeAtEntry String?
+
+  orders          Order[]
+  decisionLog     TradeDecisionLog?
+
+  @@index([symbol, status])
+  @@index([status, openedAt(sort: Desc)])
+  @@map("positions")
+}
+
+// =============================================================================
+// TRADE DECISION LOG
+// Every signal evaluation recorded for full transparency.
+// =============================================================================
+
+model TradeDecisionLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  symbol    String
+  outcome   String   // APPROVED | REJECTED | NO_TRADE_AI_UNAVAILABLE
+
+  // Strategy
+  strategyScore          Int
+  requiredStrategyScore  Int
+  strategyReasons        String[]
+  signalId               String?
+  signal                 StrategySignal? @relation(fields: [signalId], references: [id])
+
+  // AI
+  aiDecision             String?  // BUY | SELL | HOLD | NO_TRADE | null
+  aiConfidence           Float?
+  requiredAiConfidence   Float
+  aiReasons              String[]
+
+  // Risk
+  riskDecision           String?  // APPROVED | REJECTED | null
+  riskRejectionReasons   String[]
+
+  // Quality
+  riskReward             Float?
+  requiredRiskReward     Float
+  marketRegime           String
+
+  finalReason            String
+
+  // If approved, link to position
+  positionId             String?  @unique
+  position               Position? @relation(fields: [positionId], references: [id])
+
+  @@index([symbol, createdAt(sort: Desc)])
+  @@index([outcome, createdAt(sort: Desc)])
+  @@map("trade_decision_logs")
+}
+
+// =============================================================================
+// DAILY STATISTICS
+// Aggregated daily performance snapshot.
+// =============================================================================
+
+model DailyStatistic {
+  id               String   @id @default(cuid())
+  date             String   @unique // YYYY-MM-DD UTC
+  createdAt        DateTime @default(now()) @db.Timestamptz
+  updatedAt        DateTime @updatedAt @db.Timestamptz
+
+  startingBalance  Float
+  endingBalance    Float
+  pnl              Float
+  pnlPercent       Float
+
+  totalTrades      Int      @default(0)
+  winningTrades    Int      @default(0)
+  losingTrades     Int      @default(0)
+  winRate          Float    @default(0)
+  avgWin           Float    @default(0)
+  avgLoss          Float    @default(0)
+  profitFactor     Float    @default(0)
+
+  maxDrawdown      Float    @default(0)
+  totalFees        Float    @default(0)
+  aiRequestsUsed   Int      @default(0)
+
+  isPaper          Boolean  @default(true)
+
+  @@map("daily_statistics")
+}
+
+// =============================================================================
+// RISK EVENTS
+// Records when risk limits are hit.
+// =============================================================================
+
+model RiskEvent {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  eventType   String   // DAILY_LOSS_LIMIT | WEEKLY_LOSS_LIMIT | MAX_DRAWDOWN | EMERGENCY_STOP | CONSECUTIVE_LOSSES
+  symbol      String?
+  details     Json     @default("{}")
+  resolved    Boolean  @default(false)
+  resolvedAt  DateTime? @db.Timestamptz
+
+  @@index([createdAt(sort: Desc)])
+  @@index([eventType, resolved])
+  @@map("risk_events")
+}
+
+// =============================================================================
+// SYSTEM EVENTS & LOGS
+// Structured event log for the entire platform.
+// =============================================================================
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  type      String   // See SystemEventType in @trading/types
+  level     String   // debug | info | warn | error
+  message   String
+  data      Json?
+
+  @@index([type, createdAt(sort: Desc)])
+  @@index([level, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("system_events")
+}
+
+// =============================================================================
+// WORKER HEARTBEATS
+// Used by dashboard to show worker liveness.
+// =============================================================================
+
+model WorkerHeartbeat {
+  id            String   @id @default(cuid())
+  workerId      String   @unique
+  workerVersion String
+  status        String   // RUNNING | PAUSED | STOPPED | ERROR | EMERGENCY_STOP
+  tradingMode   String   // PAPER | LIVE
+  currentJob    String?
+  uptimeSeconds Int
+  lastSeenAt    DateTime @db.Timestamptz
+  memoryUsageMb Int
+  queuedJobs    Int      @default(0)
+
+  @@index([lastSeenAt(sort: Desc)])
+  @@map("worker_heartbeats")
+}
+
+// =============================================================================
+// BACKTEST RUNS
+// =============================================================================
+
+model BacktestRun {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  strategyName   String
+  symbol         String
+  timeframe      String
+  startDate      DateTime @db.Timestamptz
+  endDate        DateTime @db.Timestamptz
+  initialBalance Float
+  status         String   @default("PENDING") // PENDING | RUNNING | COMPLETED | FAILED
+  error          String?
+
+  // Config snapshot
+  riskConfig  Json
+
+  // Results
+  totalTrades    Int?
+  winningTrades  Int?
+  losingTrades   Int?
+  winRate        Float?
+  netPnl         Float?
+  netPnlPercent  Float?
+  profitFactor   Float?
+  avgR           Float?
+  maxDrawdown    Float?
+  maxDrawdownPct Float?
+  largestWin     Float?
+  largestLoss    Float?
+  avgTrade       Float?
+  totalFees      Float?
+
+  // Stored as JSON — trade list + equity curve
+  tradeList    Json?
+  equityCurve  Json?
+
+  @@index([createdAt(sort: Desc)])
+  @@index([status])
+  @@map("backtest_runs")
+}

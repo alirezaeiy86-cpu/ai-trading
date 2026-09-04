@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-and-test:
+    name: Typecheck, Lint & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: trading
+          POSTGRES_PASSWORD: trading
+          POSTGRES_DB: trading_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: "postgresql://trading:trading@localhost:5432/trading_db"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: "ci-test-jwt-secret-at-least-32-characters-long"
+      SESSION_SECRET: "ci-test-session-secret-at-least-32-characters"
+      DASHBOARD_PASSWORD: "ci-test-password"
+      AI_ENABLED: "false"
+      PAPER_TRADING: "true"
+      LIVE_TRADING: "false"
+      NODE_ENV: "test"
+      LOG_LEVEL: "error"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check — packages
+        run: |
+          npx tsc --noEmit -p packages/types/tsconfig.json
+          npx tsc --noEmit -p packages/config/tsconfig.json
+          npx tsc --noEmit -p packages/indicators/tsconfig.json
+          npx tsc --noEmit -p packages/risk-engine/tsconfig.json
+          npx tsc --noEmit -p packages/strategies/tsconfig.json
+
+      - name: Run migrations
+        run: npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma
+
+      - name: Test — indicators
+        run: npm test --workspace=packages/indicators
+
+      - name: Test — risk-engine
+        run: npm test --workspace=packages/risk-engine
+
+      - name: Test — strategies
+        run: npm test --workspace=packages/strategies
+
+      - name: Test — ai-engine
+        run: npm test --workspace=packages/ai-engine
+
+      - name: Test — execution
+        run: npm test --workspace=packages/execution
+
+      - name: Test — backtesting
+        run: npm test --workspace=packages/backtesting
+
+      - name: Test — market-data
+        run: npm test --workspace=packages/market-data

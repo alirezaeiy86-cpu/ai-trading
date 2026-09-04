@@ -1,0 +1,43 @@
+app = "trading-api"
+primary_region = "ams"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  NODE_ENV          = "production"
+  API_PORT          = "3001"
+  API_HOST          = "0.0.0.0"
+  PAPER_TRADING     = "true"
+  LIVE_TRADING      = "false"
+  AI_UNAVAILABLE_MODE = "NO_TRADE"
+  LOG_LEVEL         = "info"
+
+[[services]]
+  internal_port = 3001
+  protocol      = "tcp"
+
+  [[services.ports]]
+    port     = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port     = 80
+    handlers = ["http"]
+
+  [services.concurrency]
+    type       = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.http_checks]]
+    interval     = "30s"
+    timeout      = "10s"
+    grace_period = "30s"
+    method       = "get"
+    path         = "/health"
+
+[vm]
+  cpu_kind  = "shared"
+  cpus      = 1
+  memory_mb = 256

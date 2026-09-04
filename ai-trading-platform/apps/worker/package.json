@@ -1,0 +1,32 @@
+{
+  "name": "@trading/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@trading/ai-engine": "*",
+    "@trading/config": "*",
+    "@trading/database": "*",
+    "@trading/execution": "*",
+    "@trading/indicators": "*",
+    "@trading/logger": "*",
+    "@trading/market-data": "*",
+    "@trading/risk-engine": "*",
+    "@trading/strategies": "*",
+    "@trading/types": "*",
+    "bullmq": "^5.4.3",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}
