@@ -12,6 +12,9 @@ npx tsc -p packages/config
 echo "==> Building logger..."
 npx tsc -p packages/logger
 
+echo "==> Generating Prisma client..."
+npx prisma generate --schema=packages/database/prisma/schema.prisma
+
 echo "==> Building database..."
 npx tsc -p packages/database
 
