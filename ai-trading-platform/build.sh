@@ -1,7 +1,7 @@
 set -e
 
 echo "==> Installing dependencies..."
-npm install --ignore-scripts
+npm install --ignore-scripts --include=dev
 
 echo "==> Building types..."
 npx tsc -p packages/types
