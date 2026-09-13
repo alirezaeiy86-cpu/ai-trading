@@ -1,4 +1,4 @@
-import type { Order, Prisma } from '@prisma/client';
+import type { Order } from '@prisma/client';
 import { prisma } from '../client';
 
 // =============================================================================
