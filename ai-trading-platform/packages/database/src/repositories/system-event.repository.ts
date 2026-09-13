@@ -1,4 +1,4 @@
-import type { SystemEvent } from '@prisma/client';
+import type { SystemEvent,Prisma } from '@prisma/client';
 import { prisma } from '../client';
 import type { SystemEventType, LogLevel } from '@trading/types';
 
@@ -19,7 +19,7 @@ export async function logEvent(event: CreateEventData): Promise<SystemEvent> {
       type: event.type,
       level: event.level,
       message: event.message,
-      data: (event.data ?? undefined) as Prisma.InputJsonValue | unddefined,
+      data: (event.data ?? undefined) as Prisma.InputJsonValue | undefined,
     },
   });
 }
