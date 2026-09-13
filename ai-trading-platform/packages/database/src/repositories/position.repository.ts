@@ -1,4 +1,4 @@
-import type { Position, Prisma } from '@prisma/client';
+import type { Position } from '@prisma/client';
 import { prisma } from '../client';
 
 // =============================================================================
