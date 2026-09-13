@@ -4,18 +4,18 @@ echo "==> Installing dependencies..."
 npm install --ignore-scripts
 
 echo "==> Building types..."
-cd packages/types && npx tsc --noEmit flase && cd ../..
+npx tsc -p packages/types
 
 echo "==> Building config..."
-cd packages/config && npx tsc --noEmit flase && cd ../..
+npx tsc -p packages/config
 
 echo "==> Building logger..."
-cd packages/logger && npx tsc --noEmit flase && cd ../..
+npx tsc -p packages/logger
 
 echo "==> Building database..."
-cd packages/database && npx tsc --noEmit flase && cd ../..
+npx tsc -p packages/database
 
 echo "==> Building API..."
-cd apps/api && npx tsc --noEmit flase && cd ../..
+npx tsc -p apps/api
 
 echo "==> Done!"
