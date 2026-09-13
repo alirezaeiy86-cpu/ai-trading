@@ -19,7 +19,7 @@ export async function logEvent(event: CreateEventData): Promise<SystemEvent> {
       type: event.type,
       level: event.level,
       message: event.message,
-      data: event.data ?? undefined,
+      data: (event.data ?? undefined) as Prisma.InputJsonValue | unddefined,
     },
   });
 }
