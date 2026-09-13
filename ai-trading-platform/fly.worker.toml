@@ -1,0 +1,25 @@
+app = "trading-worker"
+primary_region = "ams"
+
+[build]
+  dockerfile = "apps/worker/Dockerfile"
+
+[env]
+  NODE_ENV          = "production"
+  PAPER_TRADING     = "true"
+  LIVE_TRADING      = "false"
+  AI_UNAVAILABLE_MODE = "NO_TRADE"
+  LOG_LEVEL         = "info"
+
+# Worker has no HTTP port — liveness via heartbeat in PostgreSQL
+# Fly restarts it automatically if the process exits
+
+[vm]
+  cpu_kind  = "shared"
+  cpus      = 1
+  memory_mb = 256
+
+# Keep worker always running — restart on exit
+[restart]
+  policy    = "always"
+  max_retries = 5

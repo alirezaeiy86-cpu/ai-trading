@@ -1,0 +1,53 @@
+# =============================================================================
+# FLY.IO DEPLOYMENT CONFIGURATION
+# Deploy API and Worker to a single shared machine to minimise cost.
+# For separate API + Worker deployments, create two fly.toml files.
+#
+# Setup:
+#   fly launch --name trading-backend --copy-config
+#   fly secrets set DATABASE_URL=... REDIS_URL=... JWT_SECRET=... (etc)
+#   fly deploy
+# =============================================================================
+
+app = "trading-backend"
+primary_region = "ams"   # Amsterdam — change to nearest region
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  API_PORT = "3001"
+  API_HOST = "0.0.0.0"
+  PAPER_TRADING = "true"
+  LIVE_TRADING = "false"
+  AI_UNAVAILABLE_MODE = "NO_TRADE"
+
+[[services]]
+  internal_port = 3001
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.http_checks]]
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "30s"
+    method = "get"
+    path = "/health"
+
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256   # Sufficient for API + light worker
