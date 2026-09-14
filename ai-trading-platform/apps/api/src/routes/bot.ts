@@ -21,11 +21,12 @@ async function getRedisPublisher(): Promise<import('ioredis').Redis | null> {
   return redisPublisher;
 }
 
+const COMMAND_CHANEL = 'trading:commands';
 async function publishCommand(command: string, reason: string): Promise<boolean> {
   try {
     const redis = await getRedisPublisher();
     if (!redis) return false;
-    const { COMMAND_CHANNEL } = await import('../../../worker/src/services/redis-commands');
+    
     const msg = JSON.stringify({ command, reason, issuedAt: new Date().toISOString(), issuedBy: 'dashboard' });
     const subscribers = await redis.publish(COMMAND_CHANNEL, msg);
     return subscribers > 0;
