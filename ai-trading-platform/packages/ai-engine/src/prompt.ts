@@ -34,7 +34,7 @@ export function buildAnalysisPrompt(request: AIAnalysisRequest): string {
   const positionSummary = openPositions.length === 0
     ? 'None'
     : openPositions
-        .map((p) => `${p.side} ${p.symbol} @ ${p.entryPrice.toFixed(2)} (unrealised: ${p.unrealisedPnl.toFixed(2)})`)
+        .map((p) => `${p.side} ${p.symbol} @ ${p.entryPrice.toFixed(2)} (unrealised: ${p.unrealizedPnl.toFixed(2)})`)
         .join(', ');
 
   const signalSummary = bestSignal
