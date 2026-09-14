@@ -1,4 +1,4 @@
-import { ema, atr, rsi, highest, lowest } from '@trading/indicators';
+import { ema, atr, rsi } from '@trading/indicators';
 import type { Strategy, StrategyInput, StrategyOutput } from '../strategy.interface';
 import { calcRiskReward, noSignal } from '../strategy.interface';
 
