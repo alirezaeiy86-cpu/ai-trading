@@ -61,7 +61,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /ai/status — quick liveness + quota check
   fastify.get('/status', {
     onRequest: [fastify.authenticate],
-    handler: async (request, reply) => {
+    handler: async (_request, reply) => {
       const today = new Date().toISOString().slice(0, 10);
       const todayUsage = await prisma.aiUsageLog.findFirst({
         where: { date: today },
