@@ -97,6 +97,6 @@ export function calculatePositionSize(
  */
 export function roundToStepSize(size: number, stepSize: number): number {
   if (stepSize <= 0) return size;
-  const precision = Math.round(-Math.log10(stepSize));
+ 
   return Math.floor(size / stepSize) * stepSize;
 }
