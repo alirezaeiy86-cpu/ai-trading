@@ -13,9 +13,9 @@ declare module 'fastify' {
   }
 declare module '@fastify/jwt' {
   interface FastifyJWT {
-    user: {sub: string; iat: number; exp: number}
-  };
-}
+    user: {sub: string; iat: number; exp: number};
+  }
+
 }
 
 interface AuthPluginOptions {
