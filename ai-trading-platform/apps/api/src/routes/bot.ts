@@ -21,7 +21,7 @@ async function getRedisPublisher(): Promise<import('ioredis').Redis | null> {
   return redisPublisher;
 }
 
-const COMMAND_CHANEL = 'trading:commands';
+const COMMAND_CHANNEL = 'trading:commands';
 async function publishCommand(command: string, reason: string): Promise<boolean> {
   try {
     const redis = await getRedisPublisher();
