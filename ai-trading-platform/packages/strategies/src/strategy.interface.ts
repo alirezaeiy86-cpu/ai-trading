@@ -33,7 +33,7 @@ export interface Strategy {
   readonly displayName: string;
   readonly description: string;
   /** Which regimes this strategy is designed for */
-  readonly suitableRegimes: MarketRegime[];
+  readonly suitableRegimes:readonly MarketRegime[];
 
   /**
    * Evaluate the strategy on the given input.
