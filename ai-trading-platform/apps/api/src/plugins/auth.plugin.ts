@@ -9,9 +9,13 @@ declare module 'fastify' {
   interface FastifyInstance {
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
-  interface FastifyRequest {
-    user: { sub: string; iat: number; exp: number };
+ 
   }
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    user: {sub: string; iat: number; exp: number}
+  };
+}
 }
 
 interface AuthPluginOptions {
