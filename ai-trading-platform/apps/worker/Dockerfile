@@ -10,52 +10,43 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+COPY . .
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY packages/types/package.json ./packages/types/
-COPY packages/config/package.json ./packages/config/
-COPY packages/logger/package.json ./packages/logger/
-COPY apps/worker/package.json ./apps/worker/
+RUN npm install --ignore-scripts --include=dev
 
-RUN pnpm install --frozen-lockfile
+RUN npx tsc -p packages/types
 
-COPY packages/types/ ./packages/types/
-COPY packages/config/ ./packages/config/
-COPY packages/logger/ ./packages/logger/
-COPY apps/worker/ ./apps/worker/
-COPY tsconfig.json ./
 
-RUN pnpm --filter @trading/types build
-RUN pnpm --filter @trading/config build
-RUN pnpm --filter @trading/logger build
-RUN pnpm --filter @trading/worker build
+RUN npx tsc -p packages/config
 
-# ── Stage 2: Production ───────────────────────────────────────────────────────
+RUN npx tsc -p packages/logger
+
+RUN npx prisma generate --schema=packages/prisma/schema.prisma
+RUN npx tsc -p packages/database
+
+
+RUN npx tsc -p packages/indicators
+
+RUN npx tsc -p packages/risk-engine
+
+RUN npx tsc -p packages/strategies
+
+RUN npx tsc -p packages/market-data
+
+RUN npx tsc -p packages/execution
+
+RUN npx tsc -p packages/ai-engine
+
+
+RUN npx tsc -p apps/worker
+
 FROM node:20-alpine AS production
 
 WORKDIR /app
-
-RUN corepack enable && corepack prepare pnpm@9 --activate
-
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY packages/types/package.json ./packages/types/
-COPY packages/config/package.json ./packages/config/
-COPY packages/logger/package.json ./packages/logger/
-COPY apps/worker/package.json ./apps/worker/
-
-RUN pnpm install --frozen-lockfile --prod
-
-COPY --from=builder /app/packages/types/dist ./packages/types/dist
-COPY --from=builder /app/packages/config/dist ./packages/config/dist
-COPY --from=builder /app/packages/logger/dist ./packages/logger/dist
-COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
-
-# Non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
-USER nodejs
-
-# Workers have no HTTP port — liveness is checked via heartbeat in PostgreSQL
-# The cloud platform should restart on process exit (restart: unless-stopped)
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps/worker/dist ./apps/worker/dist
+COPY --from=build /app/apps/package.json ./apps/worker/package.json
 
 CMD ["node", "apps/worker/dist/index.js"]
