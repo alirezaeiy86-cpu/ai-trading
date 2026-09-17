@@ -572,6 +572,7 @@ export class TradingWorker {
     });
     return created.id;
   }
+  private async handleHealthCheck(): Promise<void> {
     const marketHealthy = this.marketData?.isHealthy() ?? false;
     const dataHealth    = this.marketData?.getDataHealth() ?? [];
     const staleCount    = dataHealth.filter((d) => !d.fresh).length;
