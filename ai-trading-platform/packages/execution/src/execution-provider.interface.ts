@@ -1,4 +1,4 @@
-import type { Order, Position, CloseReason } from '@trading/types';
+import type {  Position, CloseReason } from '@trading/types';
 
 // =============================================================================
 // EXECUTION PROVIDER INTERFACE
