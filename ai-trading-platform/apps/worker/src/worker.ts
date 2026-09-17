@@ -21,10 +21,9 @@ import {
   AIRequestManager,
   createAIProvider,
 } from '@trading/ai-engine';
-import type { AIAnalysisRequest } from '@trading/types';
 import { HeartbeatService }      from './services/heartbeat';
 import { TradingStateService }   from './services/trading-state.service';
-import { createRedisClients, isRedisHealthy } from './services/redis-connection';
+import { createRedisClients } from './services/redis-connection';
 import type { RedisClients }     from './services/redis-connection';
 import { CommandSubscriber }     from './services/command-subscriber';
 import { DistributedLock }       from './services/distributed-lock';
@@ -58,6 +57,8 @@ export class TradingWorker {
   private tradingState:      TradingStateService;
   private executionProvider: ExecutionProvider;
   private positionMonitor:   PositionMonitor | null = null;
+  /** Constructed when AI is enabled; reserved for AI-assisted strategy analysis. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-private-class-members
   private aiManager:         AIRequestManager | null = null;
   private redisClients:      RedisClients | null = null;
   private cmdSubscriber:     CommandSubscriber | null = null;
@@ -82,7 +83,7 @@ export class TradingWorker {
     if (config.AI_ENABLED) {
       try {
         const aiProvider = createAIProvider(config);
-        this.aiManager   = new AIRequestManager(
+        this.aiManager = new AIRequestManager(
           aiProvider,
           {
             maxPerMinute:    config.AI_MAX_REQUESTS_PER_MINUTE,
