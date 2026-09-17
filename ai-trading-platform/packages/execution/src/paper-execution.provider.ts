@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { Logger } from 'pino';
-import type { Position, CloseReason } from '@trading/types';
+import type { Position } from '@trading/types';
 import {
   PositionRepo,
   OrderRepo,
@@ -43,7 +43,8 @@ export class PaperExecutionProvider implements ExecutionProvider {
         symbol, direction, entryPrice, quantity,
         stopLoss, takeProfit,
         strategyScore, aiConfidence, marketRegime,
-        signalId, decisionLogId,
+        signalId:_signalId, decisionLogId:_decisionLogId,
+        
       } = params;
 
       // Simulate slippage — market order fills slightly worse than quoted
