@@ -1,4 +1,3 @@
-import type { Logger } from 'pino';
 import {
   PaperAccountRepo,
   PositionRepo,
@@ -15,7 +14,6 @@ import type { Position } from '@trading/types';
 export class TradingStateService {
   constructor(
     private readonly isPaper: boolean,
-    private readonly _logger: Logger,
   ) {}
 
   async getAccountState(): Promise<AccountState> {
