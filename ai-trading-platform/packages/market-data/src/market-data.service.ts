@@ -1,8 +1,8 @@
 import type { Logger } from 'pino';
 import type { Candle, Timeframe } from '@trading/types';
 import { CandleRepo } from '@trading/database';
-import type { MarketDataProvider } from '../types/provider.interface';
-import { MarketDataError } from '../types/provider.interface';
+import type { MarketDataProvider } from './types/provider.interface';
+import { MarketDataError } from './types/provider.interface';
 
 // =============================================================================
 // MARKET DATA SERVICE
@@ -138,7 +138,7 @@ export class MarketDataService {
       symbol,
       timeframe,
       (candle) => void this.handleCandle(candle, key),
-      (err) => this.handleSubscriptionError(err, symbol, timeframe),
+      (err:Error) => this.handleSubscriptionError(err, symbol, timeframe),
     );
 
     this.unsubscribeFns.set(key, unsub);
