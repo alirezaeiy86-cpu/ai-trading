@@ -31,9 +31,9 @@ export class DistributedLock {
     const result = await this.redis.set(
       EXECUTION_LOCK_KEY,
       id,
-      'NX',
       'EX',
       ttlSeconds,
+      'NX',
     );
 
     if (result === 'OK') {
