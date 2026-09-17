@@ -13,6 +13,7 @@ export type CreatePositionData = {
   stopLoss: number;
   takeProfit: number;
   isPaper: boolean;
+  fees?:number;
   strategyScore?: number;
   aiConfidence?: number;
   marketRegimeAtEntry?: string;
