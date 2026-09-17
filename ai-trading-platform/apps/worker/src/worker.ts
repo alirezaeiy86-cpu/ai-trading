@@ -57,9 +57,6 @@ export class TradingWorker {
   private tradingState:      TradingStateService;
   private executionProvider: ExecutionProvider;
   private positionMonitor:   PositionMonitor | null = null;
-  /** Constructed when AI is enabled; reserved for AI-assisted strategy analysis. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-private-class-members
-  private aiManager:         AIRequestManager | null = null;
   private redisClients:      RedisClients | null = null;
   private cmdSubscriber:     CommandSubscriber | null = null;
   private execLock:          DistributedLock | null = null;
@@ -76,14 +73,14 @@ export class TradingWorker {
       minScore:      config.NODE_ENV === 'development' ? 30 : 60,
       minRiskReward: 1.5,
     });
-    this.tradingState      = new TradingStateService(config.PAPER_TRADING, logger);
+    this.tradingState      = new TradingStateService(config.PAPER_TRADING);
     this.executionProvider = createExecutionProvider(config.PAPER_TRADING, logger);
 
     // Initialise AI manager if enabled
     if (config.AI_ENABLED) {
       try {
         const aiProvider = createAIProvider(config);
-        this.aiManager = new AIRequestManager(
+        new AIRequestManager(
           aiProvider,
           {
             maxPerMinute:    config.AI_MAX_REQUESTS_PER_MINUTE,
