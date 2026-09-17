@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import type { RedisOptions } from 'ioredis';
 
 // =============================================================================
 // REDIS CONNECTION FACTORY
@@ -13,7 +14,7 @@ export interface RedisClients {
   subscriber: Redis;
 }
 
-function buildRedisOptions(url: string): ConstructorParameters<typeof Redis>[0] {
+function buildRedisOptions(url: string): RedisOptions {
   return {
     // Parse from URL
     ...parseRedisUrl(url),
@@ -56,8 +57,8 @@ function parseRedisUrl(url: string): { host: string; port: number; password?: st
 export function createRedisClients(redisUrl: string): RedisClients {
   const opts = buildRedisOptions(redisUrl);
   return {
-    client:     new Redis(opts as ConstructorParameters<typeof Redis>[0]),
-    subscriber: new Redis(opts as ConstructorParameters<typeof Redis>[0]),
+    client:     new Redis(opts),
+    subscriber: new Redis(opts),
   };
 }
 
