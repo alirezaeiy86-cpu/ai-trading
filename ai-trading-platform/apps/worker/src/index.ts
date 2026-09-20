@@ -59,11 +59,16 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('unhandledRejection', (reason) => {
-    logger.error({ reason }, 'Unhandled rejection in worker');
+    logger.error({ err: reason }, 'Unhandled rejection in worker');
     process.exit(1);
   });
 
-  await worker.start();
+  try {
+    await worker.start();
+  } catch (err) {
+    logger.error({ err }, 'worker.start() threw');
+    process.exit(1);
+  }
 }
 
 void main();
