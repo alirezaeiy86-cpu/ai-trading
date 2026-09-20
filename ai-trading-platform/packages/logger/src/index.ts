@@ -15,8 +15,8 @@ export interface LoggerOptions {
  */
 export function createLogger(options: LoggerOptions): pino.Logger {
   const level = options.level ?? (process.env['LOG_LEVEL'] as LogLevel | undefined) ?? 'info';
-  const pretty =
-    options.pretty ?? process.env['NODE_ENV'] !== 'production';
+  const pretty = false;
+    // options.pretty ?? process.env['NODE_ENV'] !== 'production';
 
   const transport = pretty
     ? {
